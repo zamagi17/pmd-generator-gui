@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PMD Code Analysis Dashboard Pro</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9; margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 98%; margin: 0 auto; }
+        
+        .upload-section { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); text-align: center; margin-bottom: 20px; border: 2px dashed #cbd5e0; }
+        .upload-section input[type=file] { padding: 10px; cursor: pointer; }
+        
+        /* Stats Grid */
+        .stats-grid { display: none; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; }
+        .stat-card { padding: 20px; border-radius: 10px; color: white; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); cursor: pointer; transition: transform 0.2s, opacity 0.2s; border: 3px solid transparent; }
+        .stat-card:hover { transform: translateY(-5px); }
+        .stat-card.inactive { opacity: 0.4; transform: scale(0.95); }
+        .stat-card.active { border-color: #2d3748; transform: scale(1.05); }
+        .stat-number { font-size: 2em; font-weight: bold; margin: 10px 0; }
+        .stat-label { font-size: 1em; opacity: 0.9; font-weight: bold; }
+        
+        .bg-critical { background: linear-gradient(135deg, #e53e3e, #c53030); }
+        .bg-high { background: linear-gradient(135deg, #dd6b20, #c05621); }
+        .bg-medium { background: linear-gradient(135deg, #d69e2e, #b7791f); }
+        .bg-low { background: linear-gradient(135deg, #38a169, #2f855a); }
+
+        /* Toolbar */
+        .toolbar { display: none; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; padding: 15px; background: white; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .btn-tool { padding: 8px 15px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; color: white; transition: opacity 0.2s; }
+        .btn-tool:hover { opacity: 0.8; }
+        .btn-csv { background: #2b6cb0; }
+        .btn-chart { background: #805ad5; }
+        .btn-reset { background: #e53e3e; }
+        .btn-filter-fixed { background: #718096; }
+        .btn-filter-fixed.active { background: #38a169; }
+
+        .charts-row { display: none; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+        .chart-card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); position: relative; }
+
+        /* Table */
+        .table-card { display: none; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .table-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; }
+        .search-box { padding: 10px; border: 1px solid #ddd; border-radius: 4px; width: 300px; font-size: 14px; }
+        
+        .table-wrapper { overflow-x: auto; max-height: 700px; overflow-y: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; table-layout: auto; }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #eee; vertical-align: top; }
+        th { background-color: #f8f9fa; color: #555; font-weight: 600; position: sticky; top: 0; z-index: 10; cursor: pointer; user-select: none; }
+        th:hover { background-color: #e2e8f0; }
+        
+        /* Deskripsi ditampilkan utuh */
+        td.desc-col { max-width: 400px; overflow-wrap: break-word; white-space: pre-wrap; line-height: 1.5; color: #444; }
+        td.file-col { min-width: 300px; font-family: 'Consolas', monospace; color: #2d3748; font-size: 0.9em; word-break: break-all; }
+        
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.85em; color: white; font-weight: bold; white-space: nowrap; }
+        .badge-1 { background-color: #e53e3e; }
+        .badge-2 { background-color: #dd6b20; }
+        .badge-3 { background-color: #d69e2e; }
+        .badge-4 { background-color: #38a169; }
+
+        .btn-fix { padding: 4px 8px; border: 1px solid #cbd5e0; background: white; border-radius: 4px; cursor: pointer; font-size: 0.8em; font-weight: bold; transition: all 0.2s; }
+        .btn-fix.fixed { background: #38a169; color: white; border-color: #38a169; }
+        .fixed-row { background-color: #f0fdf4; opacity: 0.6; }
+        .fixed-row td.desc-col, .fixed-row td.file-col span, .fixed-row td b { text-decoration: line-through; color: #718096; }
+        
+        .rule-link { color: #2b6cb0; text-decoration: none; font-weight: bold; }
+        .rule-link:hover { text-decoration: underline; }
+
+        /* Pagination */
+        .pagination-container { display: flex; justify-content: space-between; align-items: center; margin-top: 15px; padding-top: 15px; border-top: 1px solid #eee; flex-wrap: wrap; gap: 10px; }
+        .page-btn { padding: 6px 12px; border: 1px solid #cbd5e0; background: white; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .page-btn:hover:not(:disabled) { background: #edf2f7; }
+        .page-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        @media (max-width: 1000px) {
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .charts-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1 style="text-align: center; margin-bottom: 20px;">📊 PMD Code Analysis Report</h1>
+
+    <div class="upload-section">
+        <h3>Upload File pmd-result.xml Anda</h3>
+        <input type="file" id="fileInput" accept=".xml">
+    </div>
+
+    <div class="toolbar" id="toolbar">
+        <button class="btn-tool btn-csv" onclick="exportToCSV()">📥 Export ke CSV</button>
+        <button class="btn-tool btn-chart" onclick="exportCharts()">🖼️ Download Grafik (PNG)</button>
+        <button class="btn-tool btn-filter-fixed" id="btnToggleFixed" onclick="toggleHideFixed()">👁️ Sembunyikan yang Selesai</button>
+        <button class="btn-tool btn-reset" onclick="resetAllFlags()">⚠️ Reset Semua Tanda</button>
+    </div>
+
+    <div class="stats-grid" id="statsGrid">
+        <div class="stat-card bg-critical" onclick="toggleFilter(1, this)">
+            <div class="stat-label">Critical (P1)</div><div class="stat-number" id="countCritical">0</div>
+        </div>
+        <div class="stat-card bg-high" onclick="toggleFilter(2, this)">
+            <div class="stat-label">High (P2)</div><div class="stat-number" id="countHigh">0</div>
+        </div>
+        <div class="stat-card bg-medium" onclick="toggleFilter(3, this)">
+            <div class="stat-label">Medium (P3)</div><div class="stat-number" id="countMedium">0</div>
+        </div>
+        <div class="stat-card bg-low" onclick="toggleFilter(4, this)">
+            <div class="stat-label">Low (P4)</div><div class="stat-number" id="countLow">0</div>
+        </div>
+    </div>
+
+    <div class="charts-row" id="chartsRow">
+        <div class="chart-card">
+            <h3>Distribusi Prioritas</h3>
+            <canvas id="priorityChart"></canvas>
+        </div>
+        <div class="chart-card">
+            <h3>Top 10 Pelanggaran (Rules)</h3>
+            <canvas id="rulesChart"></canvas>
+        </div>
+    </div>
+
+    <div class="table-card" id="tableCard">
+        <div class="table-header">
+            <h3>Daftar Temuan <span id="tableStatus" style="font-size: 0.8em; color: #666; font-weight: normal;"></span></h3>
+            <input type="text" id="searchBox" class="search-box" placeholder="Cari pesan, file, rule...">
+        </div>
+        <div class="table-wrapper">
+            <table id="violationTable">
+                <thead>
+                    <tr>
+                        <th onclick="handleSort('priority')" width="70">Level ↕</th>
+                        <th onclick="handleSort('status')" width="80">Status ↕</th> 
+                        <th onclick="handleSort('rule')" width="180">Rule ↕</th>
+                        <th onclick="handleSort('message')">Deskripsi (Pesan) ↕</th> 
+                        <th onclick="handleSort('filename')" width="400">File / Class ↕</th> 
+                        <th onclick="handleSort('line')" width="60">Line ↕</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        <div class="pagination-container" id="paginationContainer">
+            <div id="paginationInfo">Menampilkan 0 - 0 dari 0 baris</div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <select id="rowsPerPage" style="padding: 6px; border-radius: 4px;" onchange="changeRowsPerPage(this.value)">
+                    <option value="50">50 baris</option>
+                    <option value="100" selected>100 baris</option>
+                    <option value="500">500 baris</option>
+                </select>
+                <button class="page-btn" id="btnPrev" onclick="changePage(-1)">&#8592; Prev</button>
+                <span id="pageInfoText">Hal 1 dari 1</span>
+                <button class="page-btn" id="btnNext" onclick="changePage(1)">Next &#8594;</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    Chart.register(ChartDataLabels);
+
+    let allViolations = []; 
+    let activeFilters = new Set([1, 2, 3, 4]); 
+    let fixedViolations = new Set(JSON.parse(localStorage.getItem('pmdFixed') || '[]'));
+    let currentFilteredData = []; 
+    
+    let currentPage = 1;
+    let rowsPerPage = 100;
+    let hideFixed = false;
+    
+    let sortCol = 'priority';
+    let sortAsc = true;
+
+    let priorityChartInstance = null;
+    let rulesChartInstance = null;
+
+    document.getElementById('fileInput').addEventListener('change', function(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(e.target.result, "text/xml");
+            processXML(xmlDoc);
+        };
+        reader.readAsText(file);
+    });
+
+    function processXML(xmlDoc) {
+        const files = xmlDoc.getElementsByTagName("file");
+        allViolations = []; 
+        let counts = { 1: 0, 2: 0, 3: 0, 4: 0 }; 
+        let ruleCounts = {};
+
+        for (let i = 0; i < files.length; i++) {
+            const filename = files[i].getAttribute("name");
+            const shortFilename = filename.split(/[\\/]/).pop();
+            const fileViolations = files[i].getElementsByTagName("violation");
+
+            for (let j = 0; j < fileViolations.length; j++) {
+                const v = fileViolations[j];
+                let priority = parseInt(v.getAttribute("priority"));
+                if (priority === 5) priority = 4; // Merge P5 to P4
+
+                const rule = v.getAttribute("rule");
+                const message = v.textContent ? v.textContent.trim() : "";
+                const extUrl = v.getAttribute("externalInfoUrl") || `https://pmd.github.io/pmd/pmd_rules_java.html`;
+                const line = parseInt(v.getAttribute("beginline") || "0");
+
+                const uniqueId = btoa(encodeURIComponent(filename + rule + line)).replace(/=/g, '');
+
+                if (counts[priority] !== undefined) counts[priority]++;
+                if (ruleCounts[rule]) ruleCounts[rule]++; else ruleCounts[rule] = 1;
+
+                allViolations.push({
+                    id: uniqueId,
+                    priority: priority,
+                    rule: rule,
+                    filename: shortFilename,
+                    fullPath: filename,
+                    line: line,
+                    message: message,
+                    docUrl: extUrl
+                });
+            }
+        }
+        
+        activeFilters = new Set([1, 2, 3, 4]);
+        updateUI(counts, ruleCounts);
+    }
+
+    function updateUI(counts, ruleCounts) {
+        document.getElementById('toolbar').style.display = 'flex';
+        document.getElementById('statsGrid').style.display = 'grid';
+        document.getElementById('chartsRow').style.display = 'grid';
+        document.getElementById('tableCard').style.display = 'block';
+
+        document.getElementById('countCritical').innerText = counts[1].toLocaleString();
+        document.getElementById('countHigh').innerText = counts[2].toLocaleString();
+        document.getElementById('countMedium').innerText = counts[3].toLocaleString();
+        document.getElementById('countLow').innerText = counts[4].toLocaleString();
+
+        renderPriorityChart(counts);
+        renderRulesChart(ruleCounts);
+        applyFilters(true); 
+    }
+
+    function toggleHideFixed() {
+        hideFixed = !hideFixed;
+        const btn = document.getElementById('btnToggleFixed');
+        if(hideFixed) {
+            btn.classList.add('active');
+            btn.innerText = "👁️ Tampilkan yang Selesai";
+        } else {
+            btn.classList.remove('active');
+            btn.innerText = "👁️ Sembunyikan yang Selesai";
+        }
+        applyFilters(true);
+    }
+
+    function resetAllFlags() {
+        if(confirm("Yakin ingin mereset SEMUA tanda selesai? Data tidak bisa dikembalikan.")) {
+            fixedViolations.clear();
+            localStorage.removeItem('pmdFixed');
+            applyFilters();
+        }
+    }
+
+    function exportToCSV() {
+        if(currentFilteredData.length === 0) { alert("Tidak ada data untuk di-export"); return; }
+        
+        let csvContent = "Level,Status,Rule,Pesan,File,Line\n";
+        currentFilteredData.forEach(v => {
+            let level = v.priority === 1 ? 'Critical' : (v.priority === 2 ? 'High' : (v.priority === 3 ? 'Medium' : 'Low'));
+            let status = fixedViolations.has(v.id) ? 'Selesai' : 'Belum';
+            let safeMessage = `"${v.message.replace(/"/g, '""')}"`; 
+            csvContent += `${level},${status},${v.rule},${safeMessage},${v.fullPath},${v.line}\n`;
+        });
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", "pmd_report.csv");
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    function exportCharts() {
+        const pCanvas = document.getElementById('priorityChart');
+        const tempCanvas = document.createElement('canvas');
+        const ctx = tempCanvas.getContext('2d');
+        
+        tempCanvas.width = pCanvas.width;
+        tempCanvas.height = pCanvas.height + 100;
+        
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+        
+        ctx.drawImage(pCanvas, 0, 0);
+        
+        const p1 = document.getElementById('countCritical').innerText;
+        const p2 = document.getElementById('countHigh').innerText;
+        const p3 = document.getElementById('countMedium').innerText;
+        const p4 = document.getElementById('countLow').innerText;
+
+        ctx.fillStyle = '#333333';
+        ctx.font = 'bold 16px sans-serif';
+        ctx.textAlign = 'center';
+        
+        const centerX = tempCanvas.width / 2;
+        const textY = pCanvas.height + 40;
+        
+        ctx.fillText(`Keterangan Jumlah Pelanggaran:`, centerX, textY);
+        
+        ctx.font = '15px sans-serif';
+        ctx.fillStyle = '#e53e3e';
+        const t1 = `P1: ${p1} baris`;
+        ctx.fillStyle = '#dd6b20';
+        const t2 = ` | P2: ${p2} baris`;
+        ctx.fillStyle = '#d69e2e';
+        const t3 = ` | P3: ${p3} baris`;
+        ctx.fillStyle = '#38a169';
+        const t4 = ` | P4: ${p4} baris`;
+        
+        ctx.fillStyle = '#4a5568';
+        ctx.fillText(`Critical (P1): ${p1} | High (P2): ${p2} | Medium (P3): ${p3} | Low (P4): ${p4}`, centerX, textY + 30);
+
+        let link1 = document.createElement('a');
+        link1.download = 'PMD_Prioritas_DenganKeterangan.png'; 
+        link1.href = tempCanvas.toDataURL('image/png'); 
+        link1.click();
+        
+        setTimeout(() => {
+            const rCanvas = document.getElementById('rulesChart');
+            const tempCanvas2 = document.createElement('canvas');
+            const ctx2 = tempCanvas2.getContext('2d');
+            tempCanvas2.width = rCanvas.width;
+            tempCanvas2.height = rCanvas.height;
+            
+            ctx2.fillStyle = '#ffffff';
+            ctx2.fillRect(0, 0, tempCanvas2.width, tempCanvas2.height);
+            ctx2.drawImage(rCanvas, 0, 0);
+
+            let link2 = document.createElement('a');
+            link2.download = 'PMD_TopRules.png'; 
+            link2.href = tempCanvas2.toDataURL('image/png'); 
+            link2.click();
+        }, 500);
+    }
+
+    function applyFilters(resetPage = false) {
+        if (resetPage) currentPage = 1; 
+        const searchTerm = document.getElementById('searchBox').value.toLowerCase();
+        
+        currentFilteredData = allViolations.filter(v => {
+            const isPriorityMatch = activeFilters.has(v.priority);
+            const isSearchMatch = v.rule.toLowerCase().includes(searchTerm) || v.filename.toLowerCase().includes(searchTerm) || v.message.toLowerCase().includes(searchTerm);
+            const isFixedMatch = hideFixed ? !fixedViolations.has(v.id) : true;
+
+            return isPriorityMatch && isSearchMatch && isFixedMatch;
+        });
+
+        document.getElementById('tableStatus').innerText = `- Menampilkan ${currentFilteredData.length} baris`;
+        executeSort();
+    }
+
+    function handleSort(column) {
+        if(sortCol === column) { sortAsc = !sortAsc; } 
+        else { sortCol = column; sortAsc = true; }
+        executeSort();
+    }
+
+    function executeSort() {
+        currentFilteredData.sort((a, b) => {
+            let valA, valB;
+            
+            if(sortCol === 'status') {
+                valA = fixedViolations.has(a.id) ? 1 : 0;
+                valB = fixedViolations.has(b.id) ? 1 : 0;
+            } else {
+                valA = a[sortCol]; valB = b[sortCol];
+            }
+
+            if (valA < valB) return sortAsc ? -1 : 1;
+            if (valA > valB) return sortAsc ? 1 : -1;
+            return 0;
+        });
+        displayCurrentPage();
+    }
+
+    function displayCurrentPage() {
+        const totalRows = currentFilteredData.length;
+        const totalPages = Math.ceil(totalRows / rowsPerPage) || 1;
+        
+        if (currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+
+        const startIndex = (currentPage - 1) * rowsPerPage;
+        const endIndex = Math.min(startIndex + rowsPerPage, totalRows);
+
+        renderTable(currentFilteredData.slice(startIndex, endIndex));
+        
+        document.getElementById('paginationInfo').innerText = `Menampilkan ${totalRows === 0 ? 0 : startIndex + 1} - ${endIndex} dari ${totalRows} baris`;
+        document.getElementById('btnPrev').disabled = currentPage === 1;
+        document.getElementById('btnNext').disabled = currentPage === totalPages;
+        document.getElementById('pageInfoText').innerText = `Hal ${currentPage} dari ${totalPages}`;
+    }
+
+    function changePage(direction) { currentPage += direction; displayCurrentPage(); }
+    function changeRowsPerPage(val) { rowsPerPage = parseInt(val); currentPage = 1; displayCurrentPage(); }
+
+    document.getElementById('searchBox').addEventListener('keyup', () => applyFilters(true));
+
+    function toggleFilter(priority, element) {
+        if (activeFilters.size === 4) { activeFilters.clear(); activeFilters.add(priority); } 
+        else { activeFilters.has(priority) ? activeFilters.delete(priority) : activeFilters.add(priority); }
+        if (activeFilters.size === 0) activeFilters = new Set([1, 2, 3, 4]);
+
+        const cards = document.querySelectorAll('.stat-card');
+        const priorities = [1, 2, 3, 4];
+        const allActive = activeFilters.size === 4;
+
+        priorities.forEach((p, index) => {
+            if (activeFilters.has(p)) {
+                cards[index].classList.remove('inactive');
+                if (!allActive) cards[index].classList.add('active'); else cards[index].classList.remove('active');
+            } else {
+                cards[index].classList.add('inactive'); cards[index].classList.remove('active');
+            }
+        });
+        applyFilters(true);
+    }
+
+    function renderTable(data) {
+        const tbody = document.querySelector('#violationTable tbody');
+        tbody.innerHTML = '';
+
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 20px;">Tidak ada data ditemukan.</td></tr>';
+            return;
+        }
+
+        data.forEach(v => {
+            const tr = document.createElement('tr');
+            let badgeClass = 'badge-4'; let label = 'Low';
+            if (v.priority === 1) { badgeClass = 'badge-1'; label = 'Critical'; }
+            else if (v.priority === 2) { badgeClass = 'badge-2'; label = 'High'; }
+            else if (v.priority === 3) { badgeClass = 'badge-3'; label = 'Medium'; }
+
+            const isFixed = fixedViolations.has(v.id);
+            if (isFixed) tr.classList.add('fixed-row');
+
+            const btnClass = isFixed ? 'btn-fix fixed' : 'btn-fix';
+            const btnText = isFixed ? '✓ Selesai' : 'Tandai';
+
+            tr.innerHTML = `
+                <td><span class="badge ${badgeClass}">${label}</span></td>
+                <td><button class="${btnClass}" onclick="toggleFix('${v.id}')">${btnText}</button></td>
+                <td><a href="${v.docUrl}" target="_blank" class="rule-link" title="Buka dokumentasi rule ini">${v.rule} ↗</a></td>
+                <td class="desc-col">${v.message}</td>
+                <td class="file-col" title="${v.fullPath}">
+                    <span style="cursor: pointer; color: #2b6cb0; text-decoration: underline;" onclick="copyPath('${v.fullPath.replace(/\\/g, '\\\\')}', this)">${v.filename}</span>
+                </td>
+                <td><b>${v.line}</b></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function copyPath(text, element) {
+        navigator.clipboard.writeText(text).then(() => {
+            const ori = element.innerText;
+            element.innerText = "Tersalin!"; element.style.color = "#38a169";
+            setTimeout(() => { element.innerText = ori; element.style.color = "#2b6cb0"; }, 1500);
+        });
+    }
+
+    function toggleFix(id) {
+        fixedViolations.has(id) ? fixedViolations.delete(id) : fixedViolations.add(id);
+        localStorage.setItem('pmdFixed', JSON.stringify([...fixedViolations]));
+        applyFilters(); 
+    }
+
+    function renderPriorityChart(counts) {
+        const ctx = document.getElementById('priorityChart').getContext('2d');
+        if (priorityChartInstance) priorityChartInstance.destroy();
+        priorityChartInstance = new Chart(ctx, {
+            type: 'doughnut',
+            data: { labels: ['Critical', 'High', 'Medium', 'Low'], datasets: [{ data: [counts[1], counts[2], counts[3], counts[4]], backgroundColor: ['#e53e3e', '#dd6b20', '#d69e2e', '#38a169'] }] },
+            options: { responsive: true, plugins: { datalabels: { color: '#fff', font: {weight: 'bold'}, formatter: (v, ctx) => { let sum = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0); return sum === 0 || v === 0 ? null : ((v * 100) / sum).toFixed(1) + "%"; } } } }
+        });
+    }
+
+    function renderRulesChart(ruleCounts) {
+        const sortedRules = Object.entries(ruleCounts).sort((a, b) => b[1] - a[1]).slice(0, 10);
+        const ctx = document.getElementById('rulesChart').getContext('2d');
+        if (rulesChartInstance) rulesChartInstance.destroy();
+        rulesChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: { labels: sortedRules.map(x => x[0]), datasets: [{ label: 'Jumlah Pelanggaran', data: sortedRules.map(x => x[1]), backgroundColor: '#4299e1' }] },
+            options: { responsive: true, indexAxis: 'y' }
+        });
+    }
+</script>
+</body>
+</html>
