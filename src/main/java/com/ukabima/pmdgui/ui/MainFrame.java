@@ -4,11 +4,14 @@
  */
 package com.ukabima.pmdgui.ui;
 
-
 import com.ukabima.pmdgui.service.PmdRunner;
 import com.ukabima.pmdgui.util.FileValidator;
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.net.URI;
+
 /**
  *
  * @author teamu
@@ -52,6 +55,7 @@ public class MainFrame extends JFrame {
         } catch (Exception e) {
             System.out.println("Gagal memuat logo: " + e.getMessage());
         }
+
         // Panel Input
         JPanel inputPanel = new JPanel(new GridLayout(4, 2, 10, 15));
         pmdBinField = new JTextField("C:\\Office\\zaky\\pmd\\Aplikasi PMD\\pmd-dist-7.20.0-bin\\pmd-bin-7.20.0\\bin");
@@ -74,16 +78,34 @@ public class MainFrame extends JFrame {
         progressBar.setStringPainted(true);
         progressBar.setString("Status: Menunggu instruksi...");
 
-        JLabel creditLabel = new JLabel("Created by Zaky | UKABIMA Teams", SwingConstants.RIGHT);
+        JLabel creditLabel = new JLabel("Created by Zaky | UKABIMA Teams");
         creditLabel.setFont(new Font("Arial", Font.ITALIC, 12));
         creditLabel.setForeground(Color.GRAY);
+
+        JLabel githubLabel = new JLabel("<html><a href=''>View on GitHub</a></html>");
+        githubLabel.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        githubLabel.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                try {
+                    Desktop.getDesktop().browse(new URI("https://github.com/zamagi17/pmd-generator-gui"));
+                } catch (Exception ex) {
+                    System.out.println("Gagal membuka link: " + ex.getMessage());
+                }
+            }
+        });
+
+        // Panel penampung untuk teks credit dan link github agar sejajar kiri-kanan
+        JPanel footerInfoPanel = new JPanel(new BorderLayout());
+        footerInfoPanel.add(creditLabel, BorderLayout.WEST);
+        footerInfoPanel.add(githubLabel, BorderLayout.EAST);
 
         JPanel bottomPanel = new JPanel(new BorderLayout(0, 10));
         bottomPanel.add(generateBtn, BorderLayout.NORTH);
         
         JPanel progressPanel = new JPanel(new BorderLayout(0, 5));
         progressPanel.add(progressBar, BorderLayout.CENTER);
-        progressPanel.add(creditLabel, BorderLayout.SOUTH);
+        progressPanel.add(footerInfoPanel, BorderLayout.SOUTH); // Mengganti creditLabel langsung dengan panel footer
         bottomPanel.add(progressPanel, BorderLayout.SOUTH);
 
         add(inputPanel, BorderLayout.CENTER);
