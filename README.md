@@ -38,5 +38,20 @@ Sebelum menjalankan aplikasi ini, pastikan kamu sudah menyiapkan:
 3. Pilih file `pmd-result.xml` yang baru saja kamu buat.
 4. Selesai! Kamu bisa langsung melihat hasil analisa statis dari kodemu dalam bentuk grafik dan tabel.
 
+## 📸 Tangkapan Layar (Screenshots)
+
+### Tampilan Aplikasi GUI
+![Tampilan GUI PMD Generator](src/main/resources/viusal-pmd-generator.png)
+
+### Tampilan Dashboard Web
+**Ringkasan & Pie Chart Distribusi**
+![Web Dashboard 1](src/main/resources/web1.png)
+
+**Bar Chart Top 10 Pelanggaran**
+![Web Dashboard 2](src/main/resources/web2.png)
+
+**Tabel Detail Temuan Pelanggaran**
+![Web Dashboard 3](src/main/resources/web3.png)
+
 ## 🤝 Kontribusi
 Punya ide buat bikin aplikasi ini makin keren? Silakan *fork* repo ini dan buat *Pull Request*, atau buka *Issue* di [https://github.com/zamagi17/pmd-generator-gui](https://github.com/zamagi17/pmd-generator-gui).
